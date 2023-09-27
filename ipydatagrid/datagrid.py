@@ -574,6 +574,41 @@ class DataGrid(DOMWidget):
             self._notify_row_change(row_index, new_value)
         return True
 
+    def insert_row(self, primary_key_value, value):
+        """Insert a new row in the table, given its value.
+        """
+        schema = self._data["schema"]
+
+        primary_key = (
+            "index"
+            if "primaryKey" not in schema
+            else schema["primaryKey"][0]
+        )
+
+        if isinstance(schema["fields"][-1]["name"], tuple):
+            # TODO Support nested grids
+            raise RuntimeError("We do not support adding rows to nested grids for now")
+        else:
+            row_data = {
+                primary_key: primary_key_value,
+                "ipydguuid": len(self._data["data"])
+            }
+
+        column_index = 0
+        column = DataGrid._column_index_to_name(self._data, column_index)
+
+        while column is not None:
+            row_data[column] = value[column_index]
+
+            column_index = column_index + 1
+            column = DataGrid._column_index_to_name(
+                self._data, column_index
+            )
+
+        self._data["data"].append(row_data)
+
+        self._notify_row_added(self._get_row_index_of_primary_key(primary_key_value)[0], row_data)
+
     def get_cell_value_by_index(self, column_name, row_index):
         """Gets the value for a single cell by column name and row index."""
         return self._data["data"][row_index][column_name]
@@ -624,6 +659,19 @@ class DataGrid(DOMWidget):
                 "content": {
                     "event_type": "row-changed",
                     "row": row,
+                    "value": value,
+                },
+            }
+        )
+
+    def _notify_row_added(self, index, value):
+        # notify front-end
+        self.comm.send(
+            data={
+                "method": "custom",
+                "content": {
+                    "event_type": "row-added",
+                    "index": index,
                     "value": value,
                 },
             }

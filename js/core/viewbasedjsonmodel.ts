@@ -335,6 +335,32 @@ export class ViewBasedJSONModel extends MutableDataModel {
     return true;
   }
 
+  /**
+   * Add the row value of the currently displayed View.
+   *
+   * @param index - The index of the row to insert.
+   *
+   * @param value - The new value to update the indicated row with.
+   *
+   */
+  addRowData(
+    index: number,
+    value: any,
+  ): boolean {
+    this.insertRow({
+      index: index,
+      value: value,
+    });
+    this.emitChanged({
+      type: 'rows-inserted',
+      region: 'body',
+      index,
+      span: 1,
+    });
+
+    return true;
+  }
+
   public columnNameToIndex(name: string): number {
     const schema = this.dataset.schema;
     const primaryKeysLength = schema.primaryKey.length - 1;
@@ -609,6 +635,32 @@ export class ViewBasedJSONModel extends MutableDataModel {
   }
 
   /**
+   * Inserts a row in the full dataset of the model.
+   *
+   * @param options - The options for this function.
+   */
+  insertRow(options: ViewBasedJSONModel.IInsertRowOptions): void {
+    // Create new row and add it to new dataset
+    const newData = Array.from(this._dataset.data);
+    newData.splice(options.index, 0, options.value);
+
+    this._dataset = {
+      data: newData,
+      schema: this._dataset.schema,
+    };
+
+    if (options.syncData) {
+      this.dataSync.emit({
+        type: 'cell-updated',
+      });
+    }
+
+    // We need to rerun the transforms, as the changed cells may change the order
+    // or visibility of other rows
+    this.currentView = this._transformState.createView(this._dataset);
+  }
+
+  /**
    * A signal emitted when the data model has changes to sync to the kernel.
    */
   get dataSync(): Signal<this, ViewBasedJSONModel.IDataSyncEvent> {
@@ -772,6 +824,23 @@ export namespace ViewBasedJSONModel {
      * The new value to replace the old one.
      */
     value: any[];
+
+    /**
+     * The flag to trigger full data sync with backend.
+     */
+    syncData?: boolean;
+  }
+
+  export interface IInsertRowOptions {
+    /**
+     * The index of the target row in the current view.
+     */
+    index: number;
+
+    /**
+     * The value of the row.
+     */
+    value: ReadonlyJSONObject;
 
     /**
      * The flag to trigger full data sync with backend.

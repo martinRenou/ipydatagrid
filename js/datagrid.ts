@@ -100,6 +100,13 @@ export class DataGridModel extends DOMWidgetModel {
           content.value,
         );
       }
+
+      if (content.event_type === 'row-added') {
+        this.data_model.addRowData(
+          content.index,
+          content.value,
+        );
+      }
     });
   }
 
